@@ -1,0 +1,8 @@
+# Add project dependencies here. Example:
+# pandas
+# geopandas
+# numpy
+# matplotlib
+
+# To generate from your environment:
+# pip freeze > requirements.txt
