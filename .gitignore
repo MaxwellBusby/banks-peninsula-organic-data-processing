@@ -45,6 +45,8 @@ env.bak/
 # Data and large files
 Data/
 cache/
+Legacy/
+Plots/
 
 # OS files
 .DS_Store
