@@ -21,6 +21,10 @@ INDEX_FIELDNAMES = [
     "activity_type",
     "user_anon_id",
     "file_name",
+    "download_status",
+    "download_error",
+    "downloaded_at",
+    "download_attempts",
 ]
 
 
@@ -107,9 +111,9 @@ def _extract_user_key_from_card(card) -> str:
 
 def _extract_activity_date_from_card(card) -> str:
     selectors = [
-        "div.EntityLabel_subtitle__XSpP9 > span div",
-        "div.TrackCard_userSubheader__aIfz7 > div:first-child",
-        "div.EntityLabel_subtitle__XSpP9",
+        "div[class*='TrackCard_userSubheader__'] > div:first-child",
+        "span[data-testid$='secondary-text'] div:first-child",
+        "div[class*='EntityLabel_subtitle__']",
     ]
     for selector in selectors:
         try:
@@ -132,10 +136,25 @@ def _extract_activity_date_from_card(card) -> str:
     return ""
 
 
+def _locate_activity_cards(page):
+    selectors = [
+        "[data-testid='track-card']",
+        "div[class*='TrackCard_container__']",
+    ]
+    for selector in selectors:
+        cards = page.locator(selector)
+        try:
+            if cards.count() > 0:
+                return cards
+        except Exception:
+            continue
+    return page.locator("[data-testid='track-card']")
+
+
 def _extract_activity_type_from_card(card) -> str:
     selectors = [
-        "div.TrackCard_activityLabel___kkuy",
-        "div.EntityLabel_subtitle__XSpP9 .TrackCard_activityLabel___kkuy",
+        "div[class*='TrackCard_activityLabel__']",
+        "div[class*='EntityLabel_subtitle__'] [class*='TrackCard_activityLabel__']",
     ]
     for selector in selectors:
         try:
@@ -149,7 +168,7 @@ def _extract_activity_type_from_card(card) -> str:
 
 def _extract_activity_url_from_card(card) -> str:
     selectors = [
-        "a.TrackCard_activityCardContainer__zPN49",
+        "a[class*='TrackCard_activityCardContainer__']",
         "a[href*='/explore/recording/']",
     ]
     for selector in selectors:
@@ -180,7 +199,7 @@ def _extract_expected_activity_count(page) -> int:
 
 
 def _extract_last_activity_year(page) -> int | None:
-    cards = page.locator("[data-testid='track-card']")
+    cards = _locate_activity_cards(page)
     try:
         card_count = cards.count()
     except Exception:
@@ -394,7 +413,7 @@ def _upsert_index_row(index_csv: Path, row: dict[str, str], key_field: str = "ac
 
 
 def _collect_activity_rows_from_cards(page, trail_slug: str, id_salt_env: str) -> list[dict[str, str]]:
-    cards = page.locator("[data-testid='track-card']")
+    cards = _locate_activity_cards(page)
     try:
         card_count = cards.count()
     except Exception:

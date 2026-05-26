@@ -45,6 +45,19 @@ def _build_download_target(out_dir: Path, track_url: str, suggested_filename: st
     return target
 
 
+def _find_existing_gpx_for_track(out_dir: Path, track_url: str) -> Path | None:
+    slug = _extract_track_slug(track_url)
+    exact = out_dir / f"{slug}.gpx"
+    if exact.exists():
+        return exact
+
+    # Reuse previously downloaded variants like slug_2.gpx, slug_3.gpx, etc.
+    for candidate in sorted(out_dir.glob(f"{slug}_*.gpx")):
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def _read_index_rows(index_csv: Path) -> tuple[list[dict[str, str]], list[str]]:
     if not index_csv.exists() or index_csv.stat().st_size == 0:
         raise RuntimeError(f"Index CSV not found or empty: {index_csv}")
@@ -310,6 +323,8 @@ def export_trail_gpx_from_index(
         status = (row.get("download_status") or "").strip().lower()
         if existing_file and (out_dir / existing_file).exists():
             continue
+        if _find_existing_gpx_for_track(out_dir, track_url) is not None:
+            continue
         if status in {"downloaded", "already_downloaded"}:
             continue
 
@@ -357,6 +372,14 @@ def export_trail_gpx_from_index(
 
             existing_file = (row.get("file_name") or "").strip()
             if existing_file and (out_dir / existing_file).exists():
+                row["download_status"] = "already_downloaded"
+                row["download_error"] = ""
+                skipped += 1
+                continue
+
+            existing_gpx = _find_existing_gpx_for_track(out_dir, track_url)
+            if existing_gpx is not None:
+                row["file_name"] = existing_gpx.name
                 row["download_status"] = "already_downloaded"
                 row["download_error"] = ""
                 skipped += 1
